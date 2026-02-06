@@ -45,4 +45,11 @@ app.use('/api/appointments', require('./routes/appointments'));
 app.use('/api/history', require('./routes/history'));
 
 const PORT = process.env.PORT || 5000;
+
+app.get('/', (req, res) => {
+    res.json({
+        status: 'API Studio John Pool Online 🚀'
+    });
+});
+
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
