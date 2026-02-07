@@ -6,6 +6,9 @@ const serviceSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     duration: { type: Number, required: true }, // in minutes
     category: { type: String, required: true },
+    image: { type: String },
+    isPopular: { type: Boolean, default: false },
+    barbers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     isActive: { type: Boolean, default: true }
 });
 
