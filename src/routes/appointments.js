@@ -1,7 +1,72 @@
 const express = require('express');
 const router = express.Router();
 const Appointment = require('../models/Appointment');
+const Setting = require('../models/Setting');
+const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
+const { parse, addMinutes, format, isAfter, isBefore, isSameDay, startOfDay } = require('date-fns');
+
+// @route   GET api/appointments/available-slots
+// @desc    Get available slots for a barber and date
+router.get('/available-slots', protect, async (req, res) => {
+    const { barberId, date } = req.query; // date ISO string
+    if (!barberId || !date) return res.status(400).json({ message: 'Missing barberId or date' });
+
+    try {
+        const settings = await Setting.findOne() || new Setting();
+        const selectedDate = new Date(date);
+        const dayOfWeek = selectedDate.getDay();
+
+        // Check if shop is closed on this day
+        if (!settings.workingDays.includes(dayOfWeek) && !(dayOfWeek === 6 && settings.saturdayHours.active)) {
+            return res.json([]);
+        }
+
+        const isSaturday = dayOfWeek === 6;
+        const hours = isSaturday ? settings.saturdayHours : settings.businessHours;
+
+        // Check if it's a specific closed day
+        const isClosedDay = settings.closedDays.some(d => isSameDay(new Date(d), selectedDate));
+        if (isClosedDay) return res.json([]);
+
+        // Get already booked appointments
+        const booked = await Appointment.find({
+            barber: barberId,
+            date: {
+                $gte: startOfDay(selectedDate),
+                $lt: addMinutes(startOfDay(selectedDate), 1440)
+            },
+            status: { $ne: 'CANCELLED' }
+        });
+
+        const slots = [];
+        let current = parse(hours.start, 'HH:mm', selectedDate);
+        const endTime = parse(hours.end, 'HH:mm', selectedDate);
+
+        while (isBefore(current, endTime)) {
+            const slotTime = new Date(current);
+
+            // Validation: Must be in the future if date is today
+            const isFuture = isAfter(slotTime, new Date());
+
+            // Validation: Not already booked
+            const isTaken = booked.some(b => b.date.getTime() === slotTime.getTime());
+
+            slots.push({
+                time: format(slotTime, 'HH:mm'),
+                iso: slotTime.toISOString(),
+                available: isFuture && !isTaken
+            });
+
+            current = addMinutes(current, settings.slotDuration);
+        }
+
+        res.json(slots);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 // @route   GET api/appointments
 router.get('/', protect, async (req, res) => {
@@ -23,10 +88,37 @@ router.get('/', protect, async (req, res) => {
 // @route   POST api/appointments
 router.post('/', protect, async (req, res) => {
     const { barber, service, date } = req.body;
+    const bookingDate = new Date(date);
+
     try {
-        // Basic check for double booking
+        // 1. Future check
+        if (!isAfter(bookingDate, new Date())) {
+            return res.status(400).json({ message: 'Cannot book in the past' });
+        }
+
+        // 2. Double booking check
         const existing = await Appointment.findOne({ barber, date, status: { $ne: 'CANCELLED' } });
         if (existing) return res.status(400).json({ message: 'Time slot already taken' });
+
+        // 3. Shop hours check
+        const settings = await Setting.findOne() || new Setting();
+        const dayOfWeek = bookingDate.getDay();
+        const isSaturday = dayOfWeek === 6;
+
+        if (!settings.workingDays.includes(dayOfWeek) && !(isSaturday && settings.saturdayHours.active)) {
+            return res.status(400).json({ message: 'Shop is closed on this day' });
+        }
+
+        const hours = isSaturday ? settings.saturdayHours : settings.businessHours;
+        const slotTimeStr = format(bookingDate, 'HH:mm');
+
+        if (slotTimeStr < hours.start || slotTimeStr >= hours.end) {
+            return res.status(400).json({ message: 'Outside business hours' });
+        }
+
+        // 4. Closed days check (holidays)
+        const isClosedDay = settings.closedDays.some(d => isSameDay(new Date(d), bookingDate));
+        if (isClosedDay) return res.status(400).json({ message: 'Shop is closed on this date' });
 
         const appointment = new Appointment({
             client: req.user.id,
@@ -37,6 +129,7 @@ router.post('/', protect, async (req, res) => {
         await appointment.save();
         res.json(appointment);
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Server error' });
     }
 });
