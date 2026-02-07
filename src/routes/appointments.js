@@ -79,4 +79,26 @@ router.put('/:id/status', protect, async (req, res) => {
     }
 });
 
+// @route   PUT api/appointments/:id
+router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
+    try {
+        const appointment = await Appointment.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+        res.json(appointment);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   DELETE api/appointments/:id
+router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
+    try {
+        const appointment = await Appointment.findByIdAndDelete(req.params.id);
+        if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+        res.json({ message: 'Appointment removed' });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;

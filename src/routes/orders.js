@@ -57,4 +57,55 @@ router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
     }
 });
 
+// @route   GET api/orders
+// @desc    Get all orders (Admin only)
+router.get('/', protect, authorize('ADMIN'), async (req, res) => {
+    try {
+        const orders = await Order.find()
+            .populate('client', 'name')
+            .populate('barber', 'name')
+            .populate('products.product', 'name price')
+            .sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET api/orders/:id
+router.get('/:id', protect, async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id)
+            .populate('client', 'name')
+            .populate('barber', 'name')
+            .populate('products.product', 'name price');
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        res.json(order);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   PUT api/orders/:id
+router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
+    try {
+        const order = await Order.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        res.json(order);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   DELETE api/orders/:id
+router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
+    try {
+        const order = await Order.findByIdAndDelete(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        res.json({ message: 'Order removed' });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;
