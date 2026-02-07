@@ -41,10 +41,14 @@ router.post('/', protect, async (req, res) => {
     }
 });
 
+const CutHistory = require('../models/CutHistory');
+
 // @route   PUT api/appointments/:id/status
 router.put('/:id/status', protect, async (req, res) => {
+    const { status, notes } = req.body;
     try {
-        const appointment = await Appointment.findById(req.params.id);
+        const appointment = await Appointment.findById(req.params.id)
+            .populate('service', 'name price');
         if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
         // Auth check
@@ -52,10 +56,25 @@ router.put('/:id/status', protect, async (req, res) => {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
-        appointment.status = req.body.status;
+        appointment.status = status;
+        if (notes) appointment.notes = notes;
         await appointment.save();
+
+        // Sync with History if COMPLETED
+        if (status === 'COMPLETED') {
+            const history = new CutHistory({
+                client: appointment.client,
+                barber: appointment.barber,
+                description: `Serviço: ${appointment.service.name}`,
+                observations: notes || appointment.notes,
+                date: appointment.date
+            });
+            await history.save();
+        }
+
         res.json(appointment);
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Server error' });
     }
 });
