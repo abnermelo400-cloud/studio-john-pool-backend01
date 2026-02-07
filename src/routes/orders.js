@@ -43,20 +43,28 @@ router.put('/:id/close', protect, authorize('ADMIN', 'BARBEIRO'), async (req, re
         order.paymentMethod = req.body.paymentMethod || 'OUTRO';
         await order.save();
 
-        // Add to cashier transactions
-        await Cashier.findByIdAndUpdate(cashier._id, {
-            $push: {
-                transactions: {
-                    type: 'IN',
-                    amount: order.totalAmount,
-                    description: `Order ${order._id} closed by ${req.user.name}`
-                }
-            }
-        });
+        // Update Cashier Transactions
+        const activeCashier = await Cashier.findById(order.cashier);
+        if (activeCashier) {
+            const method = order.paymentMethod || 'PIX';
+            activeCashier.transactions.push({
+                type: 'IN',
+                amount: order.totalAmount,
+                description: `Pedido #${order._id.toString().slice(-4)} - ${order.client?.name || 'Cliente'}`,
+                paymentMethod: method
+            });
+
+            // Update Summary
+            if (method === 'CASH') activeCashier.summary.cash += order.totalAmount;
+            else if (method === 'CARD') activeCashier.summary.card += order.totalAmount;
+            else if (method === 'PIX') activeCashier.summary.pix += order.totalAmount;
+
+            await activeCashier.save();
+        }
 
         res.json(order);
     } catch (err) {
-        console.error(err);
+        console.error('Error closing order:', err);
         res.status(500).json({ message: 'Server error' });
     }
 });
