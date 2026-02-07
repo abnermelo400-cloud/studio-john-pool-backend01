@@ -62,6 +62,20 @@ router.get('/', protect, authorize('ADMIN'), async (req, res) => {
             { $sort: { revenue: -1 } }
         ]);
 
+        // 5. Revenue Breakdown (Service vs Product)
+        const breakdown = await Order.aggregate([
+            { $match: { status: 'CLOSED', closedAt: { $gte: startMonth } } },
+            { $unwind: '$products' },
+            { $lookup: { from: 'products', localField: 'products.product', foreignField: '_id', as: 'prodInfo' } },
+            { $unwind: '$prodInfo' },
+            {
+                $group: {
+                    _id: '$prodInfo.category',
+                    revenue: { $sum: { $multiply: ['$products.quantity', '$prodInfo.price'] } }
+                }
+            }
+        ]);
+
         res.json({
             kpis: {
                 revenueToday: revenue.today,
@@ -72,7 +86,8 @@ router.get('/', protect, authorize('ADMIN'), async (req, res) => {
             },
             recentOrders: await Order.find({ status: 'CLOSED' }).sort({ closedAt: -1 }).limit(5).populate('client', 'name'),
             pendingAppointments,
-            barberPerformance
+            barberPerformance,
+            breakdown
         });
     } catch (err) {
         console.error('Stats error:', err);
