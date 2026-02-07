@@ -28,7 +28,10 @@ if (!process.env.MONGODB_URI) {
 }
 
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('✅ MongoDB Connected'))
+    .then(() => {
+        console.log('✅ MongoDB Connected');
+        require('./config/adminSeed')();
+    })
     .catch(err => {
         console.error('❌ Mongo Error:', err.message);
         process.exit(1);
