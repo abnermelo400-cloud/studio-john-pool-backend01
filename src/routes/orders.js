@@ -25,10 +25,13 @@ router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
 });
 
 // @route   PUT api/orders/:id/close
-router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
+router.put('/:id/close', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
+
+        const cashier = await Cashier.findOne({ status: 'OPEN' });
+        if (!cashier) return res.status(400).json({ message: 'Cannot close order when cashier is closed' });
 
         // Update stock for products
         for (const p of order.products) {
@@ -37,22 +40,23 @@ router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
 
         order.status = 'CLOSED';
         order.closedAt = Date.now();
-        order.paymentMethod = req.body.paymentMethod;
+        order.paymentMethod = req.body.paymentMethod || 'OUTRO';
         await order.save();
 
         // Add to cashier transactions
-        await Cashier.findByIdAndUpdate(order.cashier, {
+        await Cashier.findByIdAndUpdate(cashier._id, {
             $push: {
                 transactions: {
                     type: 'IN',
                     amount: order.totalAmount,
-                    description: `Order ${order._id} closed`
+                    description: `Order ${order._id} closed by ${req.user.name}`
                 }
             }
         });
 
         res.json(order);
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Server error' });
     }
 });
