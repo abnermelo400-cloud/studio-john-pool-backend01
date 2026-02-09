@@ -4,7 +4,7 @@ const Service = require('../models/Service');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   GET api/services
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res) => {
     try {
         const services = await Service.find({ isActive: true });
         res.json(services);
