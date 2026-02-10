@@ -85,9 +85,9 @@ router.get('/', protect, async (req, res) => {
 
     try {
         const appointments = await Appointment.find(query)
-            .populate('client', 'name')
+            .populate('client', 'name phone email avatar')
             .populate('barber', 'name')
-            .populate('service', 'name price');
+            .populate('service', 'name price duration');
         res.json(appointments);
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
