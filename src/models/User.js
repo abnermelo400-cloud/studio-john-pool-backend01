@@ -11,6 +11,15 @@ const userSchema = new mongoose.Schema({
   bio: { type: String },
   specialties: [{ type: String }],
   phone: { type: String },
+  webauthnCredentials: [{
+    credentialID: { type: String, required: true },
+    credentialPublicKey: { type: String, required: true },
+    counter: { type: Number, default: 0 },
+    credentialDeviceType: { type: String },
+    credentialBackedUp: { type: Boolean },
+    transports: [{ type: String }]
+  }],
+  currentChallenge: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 

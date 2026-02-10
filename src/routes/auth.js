@@ -22,7 +22,7 @@ router.post('/register', async (req, res) => {
         await user.save();
 
         const token = generateToken(user);
-        res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
+        res.json({ token, user: { id: user._id, name: user.name, role: user.role, hasBiometrics: false } });
     } catch (err) {
         console.error('🔥 Register error:', err);
         res.status(500).json({ message: 'ERRO_REGISTER: Falha no servidor' });
@@ -58,7 +58,15 @@ router.post('/login', async (req, res) => {
 
         console.log(`✅ Login successful: ${email} (${user.role})`);
         const token = generateToken(user);
-        res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
+        res.json({
+            token,
+            user: {
+                id: user._id,
+                name: user.name,
+                role: user.role,
+                hasBiometrics: user.webauthnCredentials && user.webauthnCredentials.length > 0
+            }
+        });
     } catch (err) {
         console.error('🔥 Login error:', err);
         res.status(500).json({ message: 'ERRO_LOGIN: Falha no servidor' });
