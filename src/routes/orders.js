@@ -121,6 +121,9 @@ router.post('/:id/items', protect, authorize('ADMIN', 'BARBEIRO'), async (req, r
         if (type === 'SERVICE') {
             order.services.push({ service: itemId, price });
         } else if (type === 'PRODUCT') {
+            const product = await Product.findById(itemId);
+            if (!product) return res.status(404).json({ message: 'Product not found' });
+            if (product.stock < quantity) return res.status(400).json({ message: 'Insufficient stock' });
             order.products.push({ product: itemId, price, quantity });
         }
 
