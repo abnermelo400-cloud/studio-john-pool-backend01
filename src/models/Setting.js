@@ -18,7 +18,9 @@ const settingSchema = new mongoose.Schema({
     socialLinks: {
         instagram: { type: String, default: '' },
         whatsapp: { type: String, default: '' }
-    }
+    },
+    address: { type: String, default: '' },
+    mapsUrl: { type: String, default: '' }
 });
 
 module.exports = mongoose.model('Setting', settingSchema);
