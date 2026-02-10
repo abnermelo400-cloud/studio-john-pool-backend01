@@ -42,13 +42,13 @@ router.post('/login', async (req, res) => {
 
         if (!user) {
             console.log(`❌ Login failed: User not found (${email})`);
-            return res.status(400).json({ message: 'Credenciais inválidas' });
+            return res.status(400).json({ message: 'E-mail não encontrado' });
         }
 
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             console.log(`❌ Login failed: Invalid password for ${email}`);
-            return res.status(400).json({ message: 'Credenciais inválidas' });
+            return res.status(400).json({ message: 'Senha incorreta' });
         }
 
         console.log(`✅ Login successful: ${email} (${user.role})`);
