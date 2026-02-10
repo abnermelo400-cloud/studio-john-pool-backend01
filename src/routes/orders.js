@@ -179,24 +179,34 @@ router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
 });
 
 // @route   POST api/orders/:id/items
-router.post('/:id/items', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
+router.post('/:id/items', protect, authorize('ADMIN', 'BARBEIRO', 'CLIENTE'), async (req, res) => {
     try {
         const { type, itemId, price, quantity = 1 } = req.body; // type: 'SERVICE' or 'PRODUCT'
 
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
-        if (order.status !== 'OPEN') return res.status(400).json({ message: 'Order is closed' });
+        if (order.status !== 'OPEN') return res.status(400).json({ message: 'A comanda já está fechada.' });
+
+        // Validação de propriedade para clientes
+        if (req.user.role === 'CLIENTE') {
+            if (order.client.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Você não tem permissão para alterar esta comanda.' });
+            }
+            if (type !== 'PRODUCT') {
+                return res.status(403).json({ message: 'Clientes só podem adicionar produtos à comanda.' });
+            }
+        }
 
         if (type === 'SERVICE') {
             order.services.push({ service: itemId, price });
         } else if (type === 'PRODUCT') {
             const product = await Product.findById(itemId);
-            if (!product) return res.status(404).json({ message: 'Product not found' });
-            if (product.stock < quantity) return res.status(400).json({ message: 'Insufficient stock' });
+            if (!product) return res.status(404).json({ message: 'Produto não encontrado' });
+            if (product.stock < quantity) return res.status(400).json({ message: 'Estoque insuficiente' });
 
             // Reservar estoque imediatamente
             await Product.findByIdAndUpdate(itemId, { $inc: { stock: -quantity } });
-            console.log(`📉 Stock reserved: -${quantity} for product ${product.name}`);
+            console.log(`📉 Estoque reservado: -${quantity} para o produto ${product.name}`);
 
             order.products.push({ product: itemId, price, quantity });
         }
