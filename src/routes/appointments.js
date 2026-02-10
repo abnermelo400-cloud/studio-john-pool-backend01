@@ -14,7 +14,10 @@ router.get('/available-slots', protect, async (req, res) => {
 
     try {
         const settings = await Setting.findOne() || new Setting();
-        const selectedDate = new Date(date);
+
+        // Parse date (YYYY-MM-DD) as local time to avoid UTC shift
+        const dateParts = date.split('-').map(Number);
+        const selectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
         const dayOfWeek = selectedDate.getDay();
 
         // Check if shop is closed on this day
