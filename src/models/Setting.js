@@ -13,7 +13,8 @@ const settingSchema = new mongoose.Schema({
     },
     workingDays: { type: [Number], default: [1, 2, 3, 4, 5] }, // 0=Sun, 1=Mon...
     slotDuration: { type: Number, default: 30 }, // minutes
-    closedDays: [{ type: Date }] // Specific dates where the shop is closed
+    closedDays: [{ type: Date }], // Specific dates where the shop is closed
+    founderImage: { type: String, default: '' } // URL of the founder's image
 });
 
 module.exports = mongoose.model('Setting', settingSchema);
