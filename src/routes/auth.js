@@ -31,9 +31,9 @@ router.post('/register', async (req, res) => {
 
 // @route   POST api/auth/login
 router.post('/login', async (req, res) => {
-    let { email, password } = req.body;
+    let { email, password, portal } = req.body; // portal can be 'CLIENT' or 'STAFF'
     try {
-        console.log(`🔍 Login attempt for: ${email}`);
+        console.log(`🔍 Login attempt for: ${email} on portal: ${portal}`);
 
         if (!email || !password) {
             console.log('⚠️ Login attempt with missing fields');
@@ -47,6 +47,18 @@ router.post('/login', async (req, res) => {
             console.log(`❌ Login failed: User not found (${email})`);
             return res.status(400).json({ message: 'ERRO: E-mail não encontrado no sistema' });
         }
+
+        // --- Role Restriction Logic ---
+        if (portal === 'CLIENT' && user.role !== 'CLIENTE') {
+            console.log(`🚫 Access Denied: Staff ${email} tried to login as client`);
+            return res.status(403).json({ message: 'Acesso negado: Use o Portal Staff para sua conta.' });
+        }
+
+        if (portal === 'STAFF' && user.role === 'CLIENTE') {
+            console.log(`🚫 Access Denied: Client ${email} tried to login as staff`);
+            return res.status(403).json({ message: 'Acesso negado: Este portal é restrito para barbeiros e administradores.' });
+        }
+        // ------------------------------
 
         console.log(`👤 User found: ${user.email} (Role: ${user.role})`);
 
