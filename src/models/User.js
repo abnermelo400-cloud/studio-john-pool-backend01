@@ -21,6 +21,13 @@ const userSchema = new mongoose.Schema({
   }],
   currentChallenge: { type: String },
   createdAt: { type: Date, default: Date.now }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+userSchema.virtual('hasBiometrics').get(function () {
+  return !!(this.webauthnCredentials && this.webauthnCredentials.length > 0);
 });
 
 userSchema.pre('save', async function () {

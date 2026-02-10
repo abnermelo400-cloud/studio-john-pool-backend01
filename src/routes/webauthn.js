@@ -14,8 +14,9 @@ const URL = require('url');
 
 const rpID = process.env.RP_ID || (process.env.FRONTEND_URL ? new URL.URL(process.env.FRONTEND_URL).hostname : 'localhost');
 const origin = process.env.FRONTEND_URL || 'http://localhost:3000';
+const expectedOrigin = [origin, origin.replace('://', '://www.')];
 
-console.log('🌐 WebAuthn Config:', { rpID, origin });
+console.log('🌐 WebAuthn Config:', { rpID, origin, expectedOrigin });
 
 const generateToken = (user) => {
     return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
@@ -69,7 +70,7 @@ router.post('/register-verify', protect, async (req, res) => {
         const verification = await verifyRegistrationResponse({
             response: body,
             expectedChallenge: user.currentChallenge,
-            expectedOrigin: origin,
+            expectedOrigin,
             expectedRPID: rpID,
         });
 
@@ -166,7 +167,7 @@ router.post('/login-verify', async (req, res) => {
         const verification = await verifyAuthenticationResponse({
             response: body,
             expectedChallenge: targetUser.currentChallenge,
-            expectedOrigin: origin,
+            expectedOrigin,
             expectedRPID: rpID,
             authenticator: {
                 credentialID: Buffer.from(dbCredential.credentialID, 'base64'),
