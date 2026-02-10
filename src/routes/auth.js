@@ -44,7 +44,14 @@ router.post('/login', async (req, res) => {
 });
 
 // @route   GET api/auth/google
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        return res.status(400).json({
+            message: 'Google Login não está configurado no servidor. Por favor, adicione GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET às variáveis de ambiente.'
+        });
+    }
+    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
 
 // @route   GET api/auth/google/callback
 router.get('/google/callback', passport.authenticate('google', { session: false }), (req, res) => {
