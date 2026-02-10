@@ -136,25 +136,48 @@ router.post('/', protect, async (req, res) => {
 
 const CutHistory = require('../models/CutHistory');
 
+// @route   PUT api/appointments/:id/cancel
+router.put('/:id/cancel', protect, async (req, res) => {
+    try {
+        const appointment = await Appointment.findById(req.params.id);
+        if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+
+        if (req.user.role === 'CLIENTE' && appointment.client.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        const settings = await Setting.findOne() || new Setting();
+        const now = new Date();
+        const windowInMs = (settings.cancellationWindow || 2) * 60 * 60 * 1000;
+
+        if (req.user.role === 'CLIENTE' && appointment.date.getTime() - now.getTime() < windowInMs) {
+            return res.status(400).json({
+                message: `Cancellations only allowed with ${settings.cancellationWindow}h advance notice.`
+            });
+        }
+
+        appointment.status = 'CANCELLED';
+        await appointment.save();
+        res.json(appointment);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // @route   PUT api/appointments/:id/status
-router.put('/:id/status', protect, async (req, res) => {
+router.put('/:id/status', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     const { status, notes } = req.body;
     try {
         const appointment = await Appointment.findById(req.params.id)
             .populate('service', 'name price');
         if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
 
-        // Auth check
-        if (req.user.role === 'CLIENTE' && appointment.client.toString() !== req.user.id) {
-            return res.status(403).json({ message: 'Not authorized' });
-        }
-
         appointment.status = status;
         if (notes) appointment.notes = notes;
         await appointment.save();
 
-        // Sync with History if COMPLETED
         if (status === 'COMPLETED') {
+            const CutHistory = require('../models/CutHistory');
             const history = new CutHistory({
                 client: appointment.client,
                 barber: appointment.barber,

@@ -5,6 +5,33 @@ const Product = require('../models/Product');
 const Cashier = require('../models/Cashier');
 const { protect, authorize } = require('../middleware/auth');
 
+// @route   GET api/orders
+// @desc    Get all orders (Admin only)
+router.get('/', protect, authorize('ADMIN'), async (req, res) => {
+    try {
+        const orders = await Order.find()
+            .populate('client', 'name')
+            .populate('barber', 'name')
+            .populate('products.product', 'name price')
+            .sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   GET api/orders/my-open-comanda
+// @desc    Get current client's open order
+router.get('/my-open-comanda', protect, async (req, res) => {
+    try {
+        const order = await Order.findOne({ client: req.user.id, status: 'OPEN' })
+            .populate('products.product', 'name price');
+        res.json(order);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // @route   POST api/orders
 // @desc    Open a new comanda
 router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {

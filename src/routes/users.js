@@ -29,7 +29,8 @@ router.post('/', protect, authorize('ADMIN'), async (req, res) => {
             role,
             avatar: avatar || '',
             phone: phone || '',
-            bio: bio || ''
+            bio: bio || '',
+            specialties: req.body.specialties || []
         });
         await user.save();
 
@@ -97,6 +98,7 @@ router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
         if (bio !== undefined) updateData.bio = bio;
         if (avatar !== undefined) updateData.avatar = avatar;
         if (role) updateData.role = role;
+        if (req.body.specialties !== undefined) updateData.specialties = req.body.specialties;
 
         const user = await User.findByIdAndUpdate(
             req.params.id,

@@ -20,7 +20,10 @@ const settingSchema = new mongoose.Schema({
         whatsapp: { type: String, default: '' }
     },
     address: { type: String, default: '' },
-    mapsUrl: { type: String, default: '' }
+    mapsUrl: { type: String, default: '' },
+    heroImage: { type: String, default: '' }, // Background for landing
+    founderBio: { type: String, default: '' },
+    cancellationWindow: { type: Number, default: 2 } // Hours
 });
 
 module.exports = mongoose.model('Setting', settingSchema);
