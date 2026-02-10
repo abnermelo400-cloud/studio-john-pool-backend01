@@ -22,7 +22,7 @@ router.post('/', protect, authorize('ADMIN'), async (req, res) => {
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ message: 'User already exists' });
 
-        user = new User({ name, email, password, role });
+        user = new User({ name, email, password, role, avatar: req.body.avatar });
         await user.save();
 
         res.json({ id: user._id, name: user.name, role: user.role });
@@ -67,6 +67,69 @@ router.put('/:id/role', protect, authorize('ADMIN'), async (req, res) => {
     try {
         const user = await User.findByIdAndUpdate(req.params.id, { role: req.body.role }, { new: true }).select('-password');
         res.json(user);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   PUT api/users/:id
+// @desc    Update user details (ADMIN only)
+router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
+    try {
+        const { name, email, phone, bio, avatar, role } = req.body;
+        const updateData = {};
+
+        if (name) updateData.name = name;
+        if (email) updateData.email = email;
+        if (phone !== undefined) updateData.phone = phone;
+        if (bio !== undefined) updateData.bio = bio;
+        if (avatar !== undefined) updateData.avatar = avatar;
+        if (role) updateData.role = role;
+
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(user);
+    } catch (err) {
+        if (err.code === 11000) {
+            return res.status(400).json({ message: 'Email already exists' });
+        }
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   DELETE api/users/:id
+// @desc    Delete a user (ADMIN only)
+router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
+    try {
+        // Prevent deleting yourself
+        if (req.params.id === req.user.id) {
+            return res.status(400).json({ message: 'Cannot delete your own account' });
+        }
+
+        const user = await User.findById(req.params.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Check if this is the last admin
+        if (user.role === 'ADMIN') {
+            const adminCount = await User.countDocuments({ role: 'ADMIN' });
+            if (adminCount <= 1) {
+                return res.status(400).json({ message: 'Cannot delete the last admin user' });
+            }
+        }
+
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ message: 'User deleted successfully' });
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
     }
