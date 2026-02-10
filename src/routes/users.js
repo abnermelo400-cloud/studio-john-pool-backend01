@@ -44,7 +44,10 @@ router.post('/', protect, authorize('ADMIN'), async (req, res) => {
         res.json({ id: user._id, name: user.name, role: user.role });
     } catch (err) {
         console.error('🔥 Internal user creation error:', err);
-        res.status(500).json({ message: 'ERRO_CREATE_USER: Falha no servidor' });
+        res.status(500).json({
+            message: `ERRO_CREATE_USER: ${err.message}`,
+            details: err.message
+        });
     }
 });
 
