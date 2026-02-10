@@ -91,26 +91,31 @@ router.put('/:id/role', protect, authorize('ADMIN'), async (req, res) => {
     }
 });
 
-// @route   PUT api/users/:id
-// @desc    Update user details (ADMIN only)
 router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
     try {
-        const { name, email, phone, bio, avatar, role } = req.body;
-        const updateData = {};
+        const { name, email, phone, bio, avatar, role, password } = req.body;
 
-        if (name) updateData.name = name;
-        if (email) updateData.email = email;
-        if (phone !== undefined) updateData.phone = phone;
-        if (bio !== undefined) updateData.bio = bio;
-        if (avatar !== undefined) updateData.avatar = avatar;
-        if (role) updateData.role = role;
-        if (req.body.specialties !== undefined) updateData.specialties = req.body.specialties;
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-        const user = await User.findByIdAndUpdate(
-            req.params.id,
-            updateData,
-            { new: true, runValidators: true }
-        ).select('-password');
+        if (name) user.name = name;
+        if (email) user.email = email.toLowerCase().trim();
+        if (phone !== undefined) user.phone = phone;
+        if (bio !== undefined) user.bio = bio;
+        if (avatar !== undefined) user.avatar = avatar;
+        if (role) user.role = role;
+        if (req.body.specialties !== undefined) user.specialties = req.body.specialties;
+
+        // Se houver senha, ela será hashada pelo hook pre('save')
+        if (password) {
+            console.log(`📡 Updating password for user: ${user.email}`);
+            user.password = password;
+        }
+
+        await user.save();
+        console.log(`✅ User updated by admin: ${user.email}`);
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
