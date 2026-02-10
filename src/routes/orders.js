@@ -109,6 +109,76 @@ router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
     }
 });
 
+// @route   POST api/orders/:id/items
+router.post('/:id/items', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
+    try {
+        const { type, itemId, price, quantity = 1 } = req.body; // type: 'SERVICE' or 'PRODUCT'
+
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        if (order.status !== 'OPEN') return res.status(400).json({ message: 'Order is closed' });
+
+        if (type === 'SERVICE') {
+            order.services.push({ service: itemId, price });
+        } else if (type === 'PRODUCT') {
+            order.products.push({ product: itemId, price, quantity });
+        }
+
+        // Recalculate Total
+        const servicesTotal = order.services.reduce((acc, s) => acc + s.price, 0);
+        const productsTotal = order.products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
+        order.totalAmount = servicesTotal + productsTotal;
+
+        await order.save();
+
+        const updatedOrder = await Order.findById(order._id)
+            .populate('client', 'name')
+            .populate('barber', 'name')
+            .populate('services.service', 'name')
+            .populate('products.product', 'name');
+
+        res.json(updatedOrder);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// @route   DELETE api/orders/:id/items/:itemId
+router.delete('/:id/items/:itemId', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        if (order.status !== 'OPEN') return res.status(400).json({ message: 'Order is closed' });
+
+        const { type } = req.query; // 'SERVICE' or 'PRODUCT'
+
+        if (type === 'SERVICE') {
+            order.services = order.services.filter(s => s._id.toString() !== req.params.itemId);
+        } else if (type === 'PRODUCT') {
+            order.products = order.products.filter(p => p._id.toString() !== req.params.itemId);
+        }
+
+        // Recalculate Total
+        const servicesTotal = order.services.reduce((acc, s) => acc + s.price, 0);
+        const productsTotal = order.products.reduce((acc, p) => acc + (p.price * p.quantity), 0);
+        order.totalAmount = servicesTotal + productsTotal;
+
+        await order.save();
+
+        const updatedOrder = await Order.findById(order._id)
+            .populate('client', 'name')
+            .populate('barber', 'name')
+            .populate('services.service', 'name')
+            .populate('products.product', 'name');
+
+        res.json(updatedOrder);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // @route   DELETE api/orders/:id
 router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
     try {
