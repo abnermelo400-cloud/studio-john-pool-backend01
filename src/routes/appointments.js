@@ -40,25 +40,31 @@ router.get('/available-slots', protect, async (req, res) => {
         });
 
         const slots = [];
-        let current = parse(hours.start, 'HH:mm', selectedDate);
-        const endTime = parse(hours.end, 'HH:mm', selectedDate);
+        const generateSlotsForPeriod = (startStr, endStr) => {
+            let current = parse(startStr, 'HH:mm', selectedDate);
+            const endTime = parse(endStr, 'HH:mm', selectedDate);
 
-        while (isBefore(current, endTime)) {
-            const slotTime = new Date(current);
+            while (isBefore(current, endTime)) {
+                const slotTime = new Date(current);
+                const isFuture = isAfter(slotTime, new Date());
+                const isTaken = booked.some(b => b.date.getTime() === slotTime.getTime());
 
-            // Validation: Must be in the future if date is today
-            const isFuture = isAfter(slotTime, new Date());
+                slots.push({
+                    time: format(slotTime, 'HH:mm'),
+                    iso: slotTime.toISOString(),
+                    available: isFuture && !isTaken
+                });
 
-            // Validation: Not already booked
-            const isTaken = booked.some(b => b.date.getTime() === slotTime.getTime());
+                current = addMinutes(current, settings.slotDuration);
+            }
+        };
 
-            slots.push({
-                time: format(slotTime, 'HH:mm'),
-                iso: slotTime.toISOString(),
-                available: isFuture && !isTaken
-            });
+        if (hours.period1Start && hours.period1End) {
+            generateSlotsForPeriod(hours.period1Start, hours.period1End);
+        }
 
-            current = addMinutes(current, settings.slotDuration);
+        if (hours.period2Start && hours.period2End) {
+            generateSlotsForPeriod(hours.period2Start, hours.period2End);
         }
 
         res.json(slots);
@@ -112,7 +118,13 @@ router.post('/', protect, async (req, res) => {
         const hours = isSaturday ? settings.saturdayHours : settings.businessHours;
         const slotTimeStr = format(bookingDate, 'HH:mm');
 
-        if (slotTimeStr < hours.start || slotTimeStr >= hours.end) {
+        const inPeriod1 = (hours.period1Start && hours.period1End) &&
+            (slotTimeStr >= hours.period1Start && slotTimeStr < hours.period1End);
+
+        const inPeriod2 = (hours.period2Start && hours.period2End) &&
+            (slotTimeStr >= hours.period2Start && slotTimeStr < hours.period2End);
+
+        if (!inPeriod1 && !inPeriod2) {
             return res.status(400).json({ message: 'Outside business hours' });
         }
 
