@@ -132,12 +132,52 @@ router.get('/me', protect, authorize('BARBEIRO'), async (req, res) => {
             status: 'PENDING'
         }).populate('client', 'name').sort({ date: 1 });
 
+        // 3. Service vs Product Breakdown for this month
+        const breakdown = await Order.aggregate([
+            { $match: { barber: req.user._id, status: 'CLOSED', closedAt: { $gte: startMonth } } },
+            {
+                $project: {
+                    servicesTotal: { $reduce: { input: "$services", initialValue: 0, in: { $add: ["$$value", "$$this.price"] } } },
+                    productsTotal: { $reduce: { input: "$products", initialValue: 0, in: { $add: ["$$value", { $multiply: ["$$this.price", "$$this.quantity"] }] } } }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    services: { $sum: "$servicesTotal" },
+                    products: { $sum: "$productsTotal" }
+                }
+            }
+        ]);
+
+        const myBreakdown = breakdown[0] || { services: 0, products: 0 };
+
+        // 4. Most performed services this month
+        const topServices = await Order.aggregate([
+            { $match: { barber: req.user._id, status: 'CLOSED', closedAt: { $gte: startMonth } } },
+            { $unwind: "$services" },
+            { $lookup: { from: 'services', localField: 'services.service', foreignField: '_id', as: 'serviceInfo' } },
+            { $unwind: "$serviceInfo" },
+            {
+                $group: {
+                    _id: "$services.service",
+                    name: { $first: "$serviceInfo.name" },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
+        ]);
+
         res.json({
             kpis: {
                 revenueToday: revenue.today,
                 revenueMonth: revenue.totalMonth,
-                todayAppointments: appointmentsCount
+                todayAppointments: appointmentsCount,
+                ticketMedio: revenue.count > 0 ? (revenue.totalMonth / revenue.count) : 0
             },
+            breakdown: myBreakdown,
+            topServices,
             pendingAppointments: myPendingAppointments
         });
     } catch (err) {
