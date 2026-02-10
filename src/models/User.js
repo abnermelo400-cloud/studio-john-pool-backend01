@@ -14,23 +14,19 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
-  this.password = await new Promise((resolve, reject) => {
-    bcrypt.hash(this.password, 10, (err, hash) => {
-      if (err) return reject(err);
-      resolve(hash);
-    });
-  });
+userSchema.pre('save', function (next) {
+  if (!this.isModified('password')) return next();
+  try {
+    const salt = bcrypt.genSaltSync(10);
+    this.password = bcrypt.hashSync(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 userSchema.methods.comparePassword = function (candidatePassword) {
-  return new Promise((resolve, reject) => {
-    bcrypt.compare(candidatePassword, this.password, (err, isMatch) => {
-      if (err) return reject(err);
-      resolve(isMatch);
-    });
-  });
+  return bcrypt.compareSync(candidatePassword, this.password);
 };
 
 module.exports = mongoose.model('User', userSchema);

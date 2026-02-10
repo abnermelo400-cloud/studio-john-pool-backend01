@@ -45,7 +45,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'E-mail não encontrado' });
         }
 
-        const isMatch = await user.comparePassword(password);
+        const isMatch = user.comparePassword(password);
         if (!isMatch) {
             console.log(`❌ Login failed: Invalid password for ${email}`);
             return res.status(400).json({ message: 'Senha incorreta' });
