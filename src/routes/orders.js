@@ -6,10 +6,15 @@ const Cashier = require('../models/Cashier');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   GET api/orders
-// @desc    Get all orders (Admin only)
-router.get('/', protect, authorize('ADMIN'), async (req, res) => {
+// @desc    Get all orders (Admin gets all, Barber gets theirs)
+router.get('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
-        const orders = await Order.find()
+        let query = {};
+        if (req.user.role === 'BARBEIRO') {
+            query.barber = req.user.id;
+        }
+
+        const orders = await Order.find(query)
             .populate('client', 'name')
             .populate('barber', 'name')
             .populate('products.product', 'name price')
@@ -20,39 +25,46 @@ router.get('/', protect, authorize('ADMIN'), async (req, res) => {
     }
 });
 
-// @route   GET api/orders/my-open-comanda
-// @desc    Get current client's open order
-router.get('/my-open-comanda', protect, async (req, res) => {
-    try {
-        const order = await Order.findOne({ client: req.user.id, status: 'OPEN' })
-            .populate('products.product', 'name price');
-        res.json(order);
-    } catch (err) {
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
 // @route   POST api/orders
-// @desc    Open a new comanda
+// @desc    Create a new order
 router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
-        const cashier = await Cashier.findOne({ status: 'OPEN' });
-        if (!cashier) return res.status(400).json({ message: 'Cashier must be open to create orders' });
+        const { client, services, products, totalAmount } = req.body;
 
-        const order = new Order({
-            ...req.body,
-            barber: req.user.id,
-            cashier: cashier._id
-        });
+        const cashier = await Cashier.findOne({ status: 'OPEN' });
+        if (!cashier) return res.status(400).json({ message: 'Cannot open order when cashier is closed' });
+
+        const orderData = {
+            client,
+            services,
+            products,
+            totalAmount,
+            cashier: cashier._id,
+            barber: req.user.role === 'BARBEIRO' ? req.user.id : req.body.barber
+        };
+
+        if (!orderData.barber) {
+            return res.status(400).json({ message: 'Barber is required' });
+        }
+
+        const order = new Order(orderData);
         await order.save();
-        res.json(order);
+
+        const populatedOrder = await Order.findById(order._id)
+            .populate('client', 'name')
+            .populate('barber', 'name')
+            .populate('services.service', 'name')
+            .populate('products.product', 'name');
+
+        res.status(201).json(populatedOrder);
     } catch (err) {
+        console.error('Error creating order:', err);
         res.status(500).json({ message: 'Server error' });
     }
 });
 
 // @route   PUT api/orders/:id/close
-router.put('/:id/close', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
+router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -85,6 +97,7 @@ router.put('/:id/close', protect, authorize('ADMIN', 'BARBEIRO'), async (req, re
             if (method === 'CASH') activeCashier.summary.cash += order.totalAmount;
             else if (method === 'CARD') activeCashier.summary.card += order.totalAmount;
             else if (method === 'PIX') activeCashier.summary.pix += order.totalAmount;
+            else activeCashier.summary.other += order.totalAmount;
 
             await activeCashier.save();
         }
@@ -92,21 +105,6 @@ router.put('/:id/close', protect, authorize('ADMIN', 'BARBEIRO'), async (req, re
         res.json(order);
     } catch (err) {
         console.error('Error closing order:', err);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// @route   GET api/orders
-// @desc    Get all orders (Admin only)
-router.get('/', protect, authorize('ADMIN'), async (req, res) => {
-    try {
-        const orders = await Order.find()
-            .populate('client', 'name')
-            .populate('barber', 'name')
-            .populate('products.product', 'name price')
-            .sort({ createdAt: -1 });
-        res.json(orders);
-    } catch (err) {
         res.status(500).json({ message: 'Server error' });
     }
 });

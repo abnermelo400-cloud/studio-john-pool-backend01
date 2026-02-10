@@ -95,4 +95,55 @@ router.get('/', protect, authorize('ADMIN'), async (req, res) => {
     }
 });
 
+// @route   GET api/stats/me
+// @desc    Get stats for the logged-in barber
+router.get('/me', protect, authorize('BARBEIRO'), async (req, res) => {
+    try {
+        const now = new Date();
+        const startDay = startOfDay(now);
+        const startMonth = startOfMonth(now);
+        const endMonth = endOfMonth(now);
+
+        // 1. My Revenue Stats
+        const revenueStats = await Order.aggregate([
+            { $match: { barber: req.user._id, status: 'CLOSED', closedAt: { $gte: startMonth, $lte: endMonth } } },
+            {
+                $group: {
+                    _id: null,
+                    totalMonth: { $sum: '$totalAmount' },
+                    today: { $sum: { $cond: [{ $gte: ['$closedAt', startDay] }, '$totalAmount', 0] } },
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const revenue = revenueStats[0] || { totalMonth: 0, today: 0, count: 0 };
+
+        // 2. My Appointments Today
+        const appointmentsCount = await Appointment.countDocuments({
+            barber: req.user.id,
+            date: { $gte: startDay },
+            status: { $ne: 'CANCELLED' }
+        });
+
+        const myPendingAppointments = await Appointment.find({
+            barber: req.user.id,
+            date: { $gte: startDay },
+            status: 'PENDING'
+        }).populate('client', 'name').sort({ date: 1 });
+
+        res.json({
+            kpis: {
+                revenueToday: revenue.today,
+                revenueMonth: revenue.totalMonth,
+                todayAppointments: appointmentsCount
+            },
+            pendingAppointments: myPendingAppointments
+        });
+    } catch (err) {
+        console.error('Barber stats error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;

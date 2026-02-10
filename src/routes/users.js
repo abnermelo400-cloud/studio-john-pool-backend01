@@ -4,10 +4,14 @@ const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   GET api/users
-// @desc    Get all users (ADMIN only)
-router.get('/', protect, authorize('ADMIN'), async (req, res) => {
+// @desc    Get all users (ADMIN only, Barbers get CLIENTE list)
+router.get('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
-        const users = await User.find().select('-password');
+        let query = {};
+        if (req.user.role === 'BARBEIRO') {
+            query.role = 'CLIENTE';
+        }
+        const users = await User.find(query).select('-password');
         res.json(users);
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
