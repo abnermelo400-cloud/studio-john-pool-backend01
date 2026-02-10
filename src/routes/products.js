@@ -6,7 +6,15 @@ const { protect, authorize } = require('../middleware/auth');
 // @route   GET api/products
 router.get('/', async (req, res) => {
     try {
-        const products = await Product.find({ isActive: true });
+        const { all } = req.query;
+        let query = { isActive: true };
+
+        // Se explicitamente pedido 'all' (usado no admin), não filtra por isActive
+        if (all === 'true') {
+            query = {};
+        }
+
+        const products = await Product.find(query);
         res.json(products);
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
