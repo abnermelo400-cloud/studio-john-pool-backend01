@@ -19,8 +19,10 @@ userSchema.pre('save', function (next) {
   try {
     const salt = bcrypt.genSaltSync(10);
     this.password = bcrypt.hashSync(this.password, salt);
+    console.log(`🔐 Password hashed for user: ${this.email}`);
     next();
   } catch (err) {
+    console.error(`🔥 Hashing error for ${this.email}:`, err);
     next(err);
   }
 });

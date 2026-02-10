@@ -21,10 +21,11 @@ router.get('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
 // @route   POST api/users
 // @desc    Create a user (ADMIN only)
 router.post('/', protect, authorize('ADMIN'), async (req, res) => {
-    const { name, email, password, role, avatar, phone, bio } = req.body;
+    let { name, email, password, role, avatar, phone, bio } = req.body;
     try {
+        email = email.toLowerCase().trim();
         let user = await User.findOne({ email });
-        if (user) return res.status(400).json({ message: 'User already exists' });
+        if (user) return res.status(400).json({ message: 'Este e-mail já está em uso' });
 
         user = new User({
             name,
@@ -37,6 +38,7 @@ router.post('/', protect, authorize('ADMIN'), async (req, res) => {
             specialties: req.body.specialties || []
         });
         await user.save();
+        console.log(`✅ User created by admin: ${email} (${role})`);
 
         res.json({ id: user._id, name: user.name, role: user.role });
     } catch (err) {

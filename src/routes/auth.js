@@ -32,9 +32,11 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     let { email, password } = req.body;
     try {
+        console.log(`🔍 Login attempt for: ${email}`);
+
         if (!email || !password) {
             console.log('⚠️ Login attempt with missing fields');
-            return res.status(400).json({ message: 'E-mail e senha são obrigatórios' });
+            return res.status(400).json({ message: 'ERRO: E-mail e senha são obrigatórios' });
         }
 
         email = email.toLowerCase().trim();
@@ -42,13 +44,15 @@ router.post('/login', async (req, res) => {
 
         if (!user) {
             console.log(`❌ Login failed: User not found (${email})`);
-            return res.status(400).json({ message: 'E-mail não encontrado' });
+            return res.status(400).json({ message: 'ERRO: E-mail não encontrado no sistema' });
         }
+
+        console.log(`👤 User found: ${user.email} (Role: ${user.role})`);
 
         const isMatch = user.comparePassword(password);
         if (!isMatch) {
             console.log(`❌ Login failed: Invalid password for ${email}`);
-            return res.status(400).json({ message: 'Senha incorreta' });
+            return res.status(400).json({ message: 'ERRO: Senha incorreta' });
         }
 
         console.log(`✅ Login successful: ${email} (${user.role})`);
@@ -56,7 +60,7 @@ router.post('/login', async (req, res) => {
         res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
     } catch (err) {
         console.error('🔥 Login error:', err);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'ERRO: Falha crítica no servidor' });
     }
 });
 
