@@ -45,6 +45,21 @@ router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
             return res.status(400).json({ message: 'O barbeiro é obrigatório.' });
         }
 
+        // Validar e reservar estoque se houver produtos na criação
+        if (products && products.length > 0) {
+            for (const item of products) {
+                const product = await Product.findById(item.product);
+                if (!product) throw new Error(`Produto não encontrado: ${item.product}`);
+                if (product.stock < item.quantity) {
+                    return res.status(400).json({ message: `Estoque insuficiente para o produto: ${product.name}` });
+                }
+            }
+            // Deduzir estoque
+            for (const item of products) {
+                await Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity } });
+            }
+        }
+
         const orderData = {
             client,
             services: services || [],
@@ -56,7 +71,7 @@ router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
 
         const order = new Order(orderData);
         await order.save();
-        console.log(`✅ Order created: ID ${order._id} for client ${client}`);
+        console.log(`✅ Order created and stock reserved: ID ${order._id}`);
 
         const populatedOrder = await Order.findById(order._id)
             .populate('client', 'name')
@@ -83,10 +98,8 @@ router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
         const cashier = await Cashier.findOne({ status: 'OPEN' });
         if (!cashier) return res.status(400).json({ message: 'Cannot close order when cashier is closed' });
 
-        // Update stock for products
-        for (const p of order.products) {
-            await Product.findByIdAndUpdate(p.product, { $inc: { stock: -p.quantity } });
-        }
+        // Stock is now reserved upon addition (POST /api/orders or POST /api/orders/:id/items)
+        // No need to decrement here anymore.
 
         order.status = 'CLOSED';
         order.closedAt = Date.now();
@@ -160,6 +173,11 @@ router.post('/:id/items', protect, authorize('ADMIN', 'BARBEIRO'), async (req, r
             const product = await Product.findById(itemId);
             if (!product) return res.status(404).json({ message: 'Product not found' });
             if (product.stock < quantity) return res.status(400).json({ message: 'Insufficient stock' });
+
+            // Reservar estoque imediatamente
+            await Product.findByIdAndUpdate(itemId, { $inc: { stock: -quantity } });
+            console.log(`📉 Stock reserved: -${quantity} for product ${product.name}`);
+
             order.products.push({ product: itemId, price, quantity });
         }
 
@@ -195,6 +213,12 @@ router.delete('/:id/items/:itemId', protect, authorize('ADMIN', 'BARBEIRO'), asy
         if (type === 'SERVICE') {
             order.services = order.services.filter(s => s._id.toString() !== req.params.itemId);
         } else if (type === 'PRODUCT') {
+            const productItem = order.products.find(p => p._id.toString() === req.params.itemId);
+            if (productItem) {
+                // Devolver ao estoque
+                await Product.findByIdAndUpdate(productItem.product, { $inc: { stock: productItem.quantity } });
+                console.log(`📈 Stock restored: +${productItem.quantity} for product ID ${productItem.product}`);
+            }
             order.products = order.products.filter(p => p._id.toString() !== req.params.itemId);
         }
 
@@ -221,9 +245,19 @@ router.delete('/:id/items/:itemId', protect, authorize('ADMIN', 'BARBEIRO'), asy
 // @route   DELETE api/orders/:id
 router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
     try {
-        const order = await Order.findByIdAndDelete(req.params.id);
+        const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
-        res.json({ message: 'Order removed' });
+
+        // Se a comanda estiver ABERTA, devolver estoque de todos os produtos
+        if (order.status === 'OPEN') {
+            for (const p of order.products) {
+                await Product.findByIdAndUpdate(p.product, { $inc: { stock: p.quantity } });
+            }
+            console.log(`♻️ Stock restored for all products in deleted OPEN order ${order._id}`);
+        }
+
+        await Order.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Order removed and stock handled' });
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
     }
