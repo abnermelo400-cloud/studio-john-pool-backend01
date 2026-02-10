@@ -45,7 +45,7 @@ module.exports = function (passport) {
                         name: profile.displayName,
                         email,
                         avatar: profile.photos?.[0]?.value,
-                        role: 'CLIENT'
+                        role: 'CLIENTE'
                     });
 
                     return done(null, user);
