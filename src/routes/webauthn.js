@@ -64,6 +64,8 @@ router.post('/register-verify', protect, async (req, res) => {
         const user = await User.findById(req.user.id);
         const { body } = req;
 
+        console.log(`🧐 Verifying registration for ${user.email}...`);
+
         const verification = await verifyRegistrationResponse({
             response: body,
             expectedChallenge: user.currentChallenge,
@@ -87,13 +89,15 @@ router.post('/register-verify', protect, async (req, res) => {
             user.currentChallenge = undefined; // Clear challenge
             await user.save();
 
+            console.log(`✅ Biometrics registered successfully for ${user.email}`);
             res.json({ verified: true });
         } else {
+            console.log(`❌ Verification failed for ${user.email}`);
             res.status(400).json({ verified: false, message: 'Verification failed' });
         }
     } catch (err) {
         console.error('🔥 WebAuthn Register Verify Error:', err);
-        res.status(500).json({ message: 'Error verifying registration' });
+        res.status(500).json({ message: `Error verifying registration: ${err.message}` });
     }
 });
 
