@@ -35,13 +35,14 @@ router.get('/register-options', protect, async (req, res) => {
         const options = await generateRegistrationOptions({
             rpName: 'Studio John Pool',
             rpID,
-            userID: Buffer.from(user._id.toString()), // Binary data for internal ID
+            userID: user._id.toString(), // simplewebauthn handles string or buffer
             userName: user.email,
+            userDisplayName: user.name,
             attestationType: 'none',
             authenticatorSelection: {
                 residentKey: 'preferred',
-                userVerification: 'preferred',
-                authenticatorAttachment: 'platform', // Force biometric/device password
+                userVerification: 'required',
+                authenticatorAttachment: 'platform',
             },
         });
 
@@ -78,12 +79,12 @@ router.post('/register-verify', protect, async (req, res) => {
             const { credentialID, credentialPublicKey, counter, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
 
             const newCredential = {
-                credentialID: Buffer.from(credentialID).toString('base64'),
+                credentialID: Buffer.from(credentialID).toString('base64url'),
                 credentialPublicKey: Buffer.from(credentialPublicKey).toString('base64'),
                 counter,
                 credentialDeviceType,
                 credentialBackedUp,
-                transports: body.response.transports,
+                transports: body.response.transports || [],
             };
 
             user.webauthnCredentials.push(newCredential);
@@ -170,7 +171,7 @@ router.post('/login-verify', async (req, res) => {
             expectedOrigin,
             expectedRPID: rpID,
             authenticator: {
-                credentialID: Buffer.from(dbCredential.credentialID, 'base64'),
+                credentialID: Buffer.from(dbCredential.credentialID, 'base64url'),
                 credentialPublicKey: Buffer.from(dbCredential.credentialPublicKey, 'base64'),
                 counter: dbCredential.counter,
                 transports: dbCredential.transports,
