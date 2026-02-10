@@ -30,25 +30,33 @@ router.get('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
 router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
         const { client, services, products, totalAmount } = req.body;
+        console.log(`📝 Order creation attempt by ${req.user.email} (Role: ${req.user.role})`);
 
         const cashier = await Cashier.findOne({ status: 'OPEN' });
-        if (!cashier) return res.status(400).json({ message: 'Cannot open order when cashier is closed' });
+        if (!cashier) {
+            console.log('⚠️ Order blocked: Cashier is CLOSED');
+            return res.status(400).json({ message: 'Não é possível abrir comanda com o caixa fechado. Peça ao administrador para abrir o caixa.' });
+        }
+
+        const barberId = req.user.role === 'BARBEIRO' ? req.user.id : req.body.barber;
+
+        if (!barberId) {
+            console.log('⚠️ Order blocked: Missing barber ID');
+            return res.status(400).json({ message: 'O barbeiro é obrigatório.' });
+        }
 
         const orderData = {
             client,
-            services,
-            products,
-            totalAmount,
+            services: services || [],
+            products: products || [],
+            totalAmount: totalAmount || 0,
             cashier: cashier._id,
-            barber: req.user.role === 'BARBEIRO' ? req.user.id : req.body.barber
+            barber: barberId
         };
-
-        if (!orderData.barber) {
-            return res.status(400).json({ message: 'Barber is required' });
-        }
 
         const order = new Order(orderData);
         await order.save();
+        console.log(`✅ Order created: ID ${order._id} for client ${client}`);
 
         const populatedOrder = await Order.findById(order._id)
             .populate('client', 'name')
@@ -58,8 +66,11 @@ router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
 
         res.status(201).json(populatedOrder);
     } catch (err) {
-        console.error('Error creating order:', err);
-        res.status(500).json({ message: 'Server error' });
+        console.error('🔥 Error creating order:', err);
+        res.status(500).json({
+            message: `ERRO_CREATE_ORDER: ${err.message}`,
+            details: err.message
+        });
     }
 });
 
