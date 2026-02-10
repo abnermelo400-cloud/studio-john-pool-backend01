@@ -35,7 +35,11 @@ router.post('/', protect, authorize('ADMIN'), async (req, res) => {
 
         res.json({ id: user._id, name: user.name, role: user.role });
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error creating user:', err);
+        if (err.code === 11000) {
+            return res.status(400).json({ message: 'Email already exists' });
+        }
+        res.status(500).json({ message: err.message || 'Server error' });
     }
 });
 
