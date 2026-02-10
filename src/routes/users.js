@@ -17,12 +17,20 @@ router.get('/', protect, authorize('ADMIN'), async (req, res) => {
 // @route   POST api/users
 // @desc    Create a user (ADMIN only)
 router.post('/', protect, authorize('ADMIN'), async (req, res) => {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, avatar, phone, bio } = req.body;
     try {
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ message: 'User already exists' });
 
-        user = new User({ name, email, password, role, avatar: req.body.avatar });
+        user = new User({
+            name,
+            email,
+            password,
+            role,
+            avatar: avatar || '',
+            phone: phone || '',
+            bio: bio || ''
+        });
         await user.save();
 
         res.json({ id: user._id, name: user.name, role: user.role });
