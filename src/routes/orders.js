@@ -133,9 +133,28 @@ router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
     }
 });
 
+// @route   GET api/orders/my-open-comanda
+// @desc    Get the open comanda for the logged-in client
+router.get('/my-open-comanda', protect, async (req, res) => {
+    try {
+        const order = await Order.findOne({ client: req.user.id, status: 'OPEN' })
+            .populate('client', 'name')
+            .populate('barber', 'name')
+            .populate('services.service', 'name')
+            .populate('products.product', 'name price');
+        res.json(order);
+    } catch (err) {
+        console.error('🔥 Error fetching my-open-comanda:', err);
+        res.status(500).json({ message: 'Server error fetching your comanda' });
+    }
+});
+
 // @route   GET api/orders/:id
 router.get('/:id', protect, async (req, res) => {
     try {
+        if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+            return res.status(400).json({ message: 'Invalid order ID format' });
+        }
         const order = await Order.findById(req.params.id)
             .populate('client', 'name')
             .populate('barber', 'name')
@@ -143,7 +162,8 @@ router.get('/:id', protect, async (req, res) => {
         if (!order) return res.status(404).json({ message: 'Order not found' });
         res.json(order);
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error(`🔥 Error fetching order ${req.params.id}:`, err);
+        res.status(500).json({ message: 'Server error fetching order' });
     }
 });
 
