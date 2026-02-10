@@ -136,7 +136,7 @@ router.post('/', protect, async (req, res) => {
             client: req.user.id,
             barber,
             service,
-            date
+            date: new Date(date) // Ensure it's a Proper Date object
         });
         await appointment.save();
         res.json(appointment);

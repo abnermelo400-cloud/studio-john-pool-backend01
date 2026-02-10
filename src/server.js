@@ -1,3 +1,4 @@
+process.env.TZ = 'America/Sao_Paulo';
 require('dotenv').config(); // 🔥 PRIMEIRA LINHA ABSOLUTA
 
 const express = require('express');
