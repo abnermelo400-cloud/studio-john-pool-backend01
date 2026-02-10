@@ -10,8 +10,12 @@ const {
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
-const rpID = process.env.RP_ID || 'localhost';
+const URL = require('url');
+
+const rpID = process.env.RP_ID || (process.env.FRONTEND_URL ? new URL.URL(process.env.FRONTEND_URL).hostname : 'localhost');
 const origin = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+console.log('🌐 WebAuthn Config:', { rpID, origin });
 
 const generateToken = (user) => {
     return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
@@ -30,7 +34,7 @@ router.get('/register-options', protect, async (req, res) => {
         const options = await generateRegistrationOptions({
             rpName: 'Studio John Pool',
             rpID,
-            userID: user._id.toString(),
+            userID: Buffer.from(user._id.toString()), // Binary data for internal ID
             userName: user.email,
             attestationType: 'none',
             authenticatorSelection: {
@@ -39,6 +43,8 @@ router.get('/register-options', protect, async (req, res) => {
                 authenticatorAttachment: 'platform', // Force biometric/device password
             },
         });
+
+        console.log(`✅ Registration options generated for ${user.email}`);
 
         // Save challenge to user
         user.currentChallenge = options.challenge;
@@ -128,19 +134,30 @@ router.post('/login-options', async (req, res) => {
 // @desc    Verify the device assertion and issue a JWT
 router.post('/login-verify', async (req, res) => {
     try {
-        const { email, body } = req; // email should be sent with the body or retrieved via credentialID
-        // Simple approach: user sends email + WebAuthn body
-        const user = await User.findOne({ email: email ? email.toLowerCase().trim() : undefined });
+        const { email, body } = req.body;
 
-        // Alternative: find user by credentialID
+        // Simple approach: user sends email + WebAuthn body
+        const searchEmail = email ? email.toLowerCase().trim() : undefined;
+
+        // Find user by email or by credentialID
         const credentialID = body.id;
-        const targetUser = await User.findOne({ 'webauthnCredentials.credentialID': credentialID });
+        let targetUser = await User.findOne({ 'webauthnCredentials.credentialID': credentialID });
+
+        if (!targetUser && searchEmail) {
+            targetUser = await User.findOne({ email: searchEmail });
+        }
 
         if (!targetUser) {
-            return res.status(400).json({ message: 'Authenticator not recognized' });
+            console.log('❌ WebAuthn Login: Authenticator not recognized for ID:', credentialID);
+            return res.status(400).json({ message: 'Dispositivo não reconhecido. Faça login com senha primeiro.' });
         }
 
         const dbCredential = targetUser.webauthnCredentials.find(c => c.credentialID === credentialID);
+
+        if (!dbCredential) {
+            console.log('❌ WebAuthn Login: Credential mismatch for user:', targetUser.email);
+            return res.status(400).json({ message: 'Credencial não encontrada para este usuário.' });
+        }
 
         const verification = await verifyAuthenticationResponse({
             response: body,
