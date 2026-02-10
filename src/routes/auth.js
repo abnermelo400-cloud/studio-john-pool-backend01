@@ -24,7 +24,8 @@ router.post('/register', async (req, res) => {
         const token = generateToken(user);
         res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error('🔥 Register error:', err);
+        res.status(500).json({ message: 'ERRO_REGISTER: Falha no servidor' });
     }
 });
 
@@ -60,7 +61,7 @@ router.post('/login', async (req, res) => {
         res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
     } catch (err) {
         console.error('🔥 Login error:', err);
-        res.status(500).json({ message: 'ERRO: Falha crítica no servidor' });
+        res.status(500).json({ message: 'ERRO_LOGIN: Falha no servidor' });
     }
 });
 

@@ -42,11 +42,8 @@ router.post('/', protect, authorize('ADMIN'), async (req, res) => {
 
         res.json({ id: user._id, name: user.name, role: user.role });
     } catch (err) {
-        console.error('Error creating user:', err);
-        if (err.code === 11000) {
-            return res.status(400).json({ message: 'Email already exists' });
-        }
-        res.status(500).json({ message: err.message || 'Server error' });
+        console.error('🔥 Internal user creation error:', err);
+        res.status(500).json({ message: 'ERRO_CREATE_USER: Falha no servidor' });
     }
 });
 
@@ -123,10 +120,11 @@ router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
 
         res.json(user);
     } catch (err) {
+        console.error('🔥 Update user internal error:', err);
         if (err.code === 11000) {
-            return res.status(400).json({ message: 'Email already exists' });
+            return res.status(400).json({ message: 'E-mail já está em uso' });
         }
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'ERRO_UPDATE_USER_INTERNAL: Falha no servidor' });
     }
 });
 
