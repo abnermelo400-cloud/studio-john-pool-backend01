@@ -14,7 +14,8 @@ router.get('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
         const users = await User.find(query).select('-password');
         res.json(users);
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error('🔥 List users error:', err);
+        res.status(500).json({ message: 'ERRO_LIST_USERS: Falha no servidor' });
     }
 });
 
@@ -54,7 +55,8 @@ router.get('/barbers', async (req, res) => {
         const barbers = await User.find({ role: 'BARBEIRO' }).select('-password');
         res.json(barbers);
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error('🔥 List barbers error:', err);
+        res.status(500).json({ message: 'ERRO_LIST_BARBERS: Falha no servidor' });
     }
 });
 
@@ -64,7 +66,8 @@ router.get('/profile', protect, async (req, res) => {
         const user = await User.findById(req.user.id).select('-password');
         res.json(user);
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error('🔥 Get profile error:', err);
+        res.status(500).json({ message: 'ERRO_GET_PROFILE: Falha no servidor' });
     }
 });
 
@@ -74,7 +77,8 @@ router.put('/profile', protect, async (req, res) => {
         const user = await User.findByIdAndUpdate(req.user.id, req.body, { new: true }).select('-password');
         res.json(user);
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error('🔥 Update profile error:', err);
+        res.status(500).json({ message: 'ERRO_UPDATE_PROFILE: Falha no servidor' });
     }
 });
 
@@ -84,7 +88,8 @@ router.put('/:id/role', protect, authorize('ADMIN'), async (req, res) => {
         const user = await User.findByIdAndUpdate(req.params.id, { role: req.body.role }, { new: true }).select('-password');
         res.json(user);
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error('🔥 Update role error:', err);
+        res.status(500).json({ message: 'ERRO_UPDATE_ROLE: Falha no servidor' });
     }
 });
 
@@ -113,10 +118,6 @@ router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
 
         await user.save();
         console.log(`✅ User updated by admin: ${user.email}`);
-
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
 
         res.json(user);
     } catch (err) {
@@ -154,7 +155,8 @@ router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
         await User.findByIdAndDelete(req.params.id);
         res.json({ message: 'User deleted successfully' });
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        console.error('🔥 Delete user error:', err);
+        res.status(500).json({ message: 'ERRO_DELETE_USER: Falha no servidor' });
     }
 });
 
