@@ -126,9 +126,8 @@ router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
             return res.status(400).json({ message: 'E-mail já está em uso' });
         }
         res.status(500).json({
-            message: 'ERRO_UPDATE_USER_INTERNAL: Falha no servidor',
-            details: err.message,
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+            message: `ERRO_UPDATE_USER_INTERNAL: ${err.message}`,
+            details: err.message
         });
     }
 });
