@@ -17,7 +17,7 @@ const orderSchema = new mongoose.Schema({
     }],
     totalAmount: { type: Number, required: true },
     paymentMethod: { type: String, enum: ['CASH', 'CARD', 'PIX'] },
-    status: { type: String, enum: ['OPEN', 'CLOSED'], default: 'OPEN' },
+    status: { type: String, enum: ['OPEN', 'READY_FOR_PAYMENT', 'CLOSED'], default: 'OPEN' },
     createdAt: { type: Date, default: Date.now },
     closedAt: { type: Date }
 });

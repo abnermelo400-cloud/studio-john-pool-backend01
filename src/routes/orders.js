@@ -89,6 +89,38 @@ router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     }
 });
 
+// @route   PUT api/orders/:id/pre-close
+// @desc    Mark order as ready for payment (Barber only, must be the one who opened it)
+router.put('/:id/pre-close', protect, authorize('BARBEIRO'), async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ message: 'Comanda não encontrada' });
+
+        // Validate that the barber who opened the comanda is the one trying to pre-close it
+        if (order.barber.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Apenas o barbeiro que abriu a comanda pode pré-fechá-la' });
+        }
+
+        if (order.status !== 'OPEN') {
+            return res.status(400).json({ message: 'Comanda já foi pré-fechada ou finalizada' });
+        }
+
+        order.status = 'READY_FOR_PAYMENT';
+        await order.save();
+
+        const populatedOrder = await Order.findById(order._id)
+            .populate('client', 'name')
+            .populate('barber', 'name')
+            .populate('services.service', 'name')
+            .populate('products.product', 'name');
+
+        res.json(populatedOrder);
+    } catch (err) {
+        console.error('Error pre-closing order:', err);
+        res.status(500).json({ message: 'Erro ao pré-fechar comanda' });
+    }
+});
+
 // @route   PUT api/orders/:id/close
 router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
     try {
@@ -137,7 +169,10 @@ router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
 // @desc    Get the open comanda for the logged-in client
 router.get('/my-open-comanda', protect, async (req, res) => {
     try {
-        const order = await Order.findOne({ client: req.user.id, status: 'OPEN' })
+        const order = await Order.findOne({
+            client: req.user.id,
+            status: { $in: ['OPEN', 'READY_FOR_PAYMENT'] }
+        })
             .populate('client', 'name')
             .populate('barber', 'name')
             .populate('services.service', 'name')
