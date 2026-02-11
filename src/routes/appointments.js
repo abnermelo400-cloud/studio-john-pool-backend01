@@ -20,13 +20,21 @@ router.get('/available-slots', protect, async (req, res) => {
         const selectedDate = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
         const dayOfWeek = selectedDate.getDay();
 
-        // Check if shop is closed on this day
-        if (!settings.workingDays.includes(dayOfWeek) && !(dayOfWeek === 6 && settings.saturdayHours.active)) {
-            return res.json([]);
+        // Get hours for the specific day
+        let hours = null;
+        if (settings.weeklySchedule && settings.weeklySchedule.length > 0) {
+            const schedule = settings.weeklySchedule.find(s => s.day === dayOfWeek);
+            if (schedule && schedule.active) hours = schedule;
+        } else {
+            // Fallback to old logic
+            const isSaturday = dayOfWeek === 6;
+            const isWorkingDay = settings.workingDays.includes(dayOfWeek) || (isSaturday && settings.saturdayHours.active);
+            if (isWorkingDay) {
+                hours = isSaturday ? settings.saturdayHours : settings.businessHours;
+            }
         }
 
-        const isSaturday = dayOfWeek === 6;
-        const hours = isSaturday ? settings.saturdayHours : settings.businessHours;
+        if (!hours) return res.json([]);
 
         // Check if it's a specific closed day
         const isClosedDay = settings.closedDays.some(d => isSameDay(new Date(d), selectedDate));
@@ -112,13 +120,23 @@ router.post('/', protect, async (req, res) => {
         // 3. Shop hours check
         const settings = await Setting.findOne() || new Setting();
         const dayOfWeek = bookingDate.getDay();
-        const isSaturday = dayOfWeek === 6;
 
-        if (!settings.workingDays.includes(dayOfWeek) && !(isSaturday && settings.saturdayHours.active)) {
+        let hours = null;
+        if (settings.weeklySchedule && settings.weeklySchedule.length > 0) {
+            const schedule = settings.weeklySchedule.find(s => s.day === dayOfWeek);
+            if (schedule && schedule.active) hours = schedule;
+        } else {
+            const isSaturday = dayOfWeek === 6;
+            const isWorkingDay = settings.workingDays.includes(dayOfWeek) || (isSaturday && settings.saturdayHours.active);
+            if (isWorkingDay) {
+                hours = isSaturday ? settings.saturdayHours : settings.businessHours;
+            }
+        }
+
+        if (!hours) {
             return res.status(400).json({ message: 'Shop is closed on this day' });
         }
 
-        const hours = isSaturday ? settings.saturdayHours : settings.businessHours;
         const slotTimeStr = format(bookingDate, 'HH:mm');
 
         const inPeriod1 = (hours.period1Start && hours.period1End) &&

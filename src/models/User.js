@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.virtual('hasBiometrics').get(function () {
-  return false;
+  return this.webauthnCredentials && this.webauthnCredentials.length > 0;
 });
 
 userSchema.pre('save', async function () {

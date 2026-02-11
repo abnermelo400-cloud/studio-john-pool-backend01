@@ -198,7 +198,7 @@ router.post('/:id/items', protect, authorize('ADMIN', 'BARBEIRO', 'CLIENTE'), as
         }
 
         if (type === 'SERVICE') {
-            order.services.push({ service: itemId, price });
+            order.services.push({ service: itemId, price, addedAt: new Date() });
         } else if (type === 'PRODUCT') {
             const product = await Product.findById(itemId);
             if (!product) return res.status(404).json({ message: 'Produto não encontrado' });
@@ -208,7 +208,7 @@ router.post('/:id/items', protect, authorize('ADMIN', 'BARBEIRO', 'CLIENTE'), as
             await Product.findByIdAndUpdate(itemId, { $inc: { stock: -quantity } });
             console.log(`📉 Estoque reservado: -${quantity} para o produto ${product.name}`);
 
-            order.products.push({ product: itemId, price, quantity });
+            order.products.push({ product: itemId, price, quantity, addedAt: new Date() });
         }
 
         // Recalculate Total
