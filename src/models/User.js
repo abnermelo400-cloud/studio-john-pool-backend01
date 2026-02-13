@@ -8,6 +8,23 @@ const userSchema = new mongoose.Schema({
   googleId: { type: String },
   role: { type: String, enum: ['ADMIN', 'BARBEIRO', 'CLIENTE'], default: 'CLIENTE' },
   avatar: { type: String },
+  notifications: [{
+    message: String,
+    date: { type: Date, default: Date.now },
+    read: { type: Boolean, default: false },
+    type: { type: String, enum: ['APPOINTMENT', 'SYSTEM', 'PROMOTION'], default: 'SYSTEM' }
+  }],
+  faceShape: {
+    shape: { type: String, enum: ['Oval', 'Quadrado', 'Redondo', 'Diamante', 'Oblongo', 'Coração'] },
+    confidence: Number,
+    lastUpdated: Date,
+    details: {
+      jawWidth: Number,
+      cheekWidth: Number,
+      faceLength: Number
+    }
+  },
+  resetPasswordToken: String,
   bio: { type: String },
   specialties: [{ type: String }],
   phone: { type: String },
@@ -36,10 +53,10 @@ userSchema.pre('save', async function () {
     if (this.password) {
       const salt = bcrypt.genSaltSync(10);
       this.password = bcrypt.hashSync(this.password, salt);
-      console.log(`🔐 Password hashed for user: ${this.email}`);
+      console.log(`🔐 Password hashed for user: ${this.email} `);
     }
   } catch (err) {
-    console.error(`🔥 Hashing error for ${this.email}:`, err);
+    console.error(`🔥 Hashing error for ${this.email}: `, err);
     throw err;
   }
 });
