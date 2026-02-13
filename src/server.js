@@ -50,6 +50,7 @@ app.use('/api/history', require('./routes/history'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/analysis', require('./routes/analysis'));
 
 const PORT = process.env.PORT || 5000;
 
