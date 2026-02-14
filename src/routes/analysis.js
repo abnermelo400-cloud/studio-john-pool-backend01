@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const FaceAnalysis = require('../models/FaceAnalysis');
-const auth = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 
 // @route   POST api/analysis
 // @desc    Save a new face analysis
 // @access  Private
-router.post('/', auth, async (req, res) => {
+router.post('/', protect, async (req, res) => {
     try {
         const { faceShape, confidence, suggestedCut, generatedImage, notes, userId } = req.body;
 
