@@ -230,10 +230,17 @@ router.put('/:id/status', protect, authorize('ADMIN', 'BARBEIRO'), async (req, r
 });
 
 // @route   PUT api/appointments/:id
-router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
+router.put('/:id', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
-        const appointment = await Appointment.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const appointment = await Appointment.findById(req.params.id);
         if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+
+        if (req.user.role === 'BARBEIRO' && appointment.barber.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Not authorized to update this appointment' });
+        }
+
+        Object.assign(appointment, req.body);
+        await appointment.save();
         res.json(appointment);
     } catch (err) {
         res.status(500).json({ message: 'Server error' });
@@ -241,10 +248,16 @@ router.put('/:id', protect, authorize('ADMIN'), async (req, res) => {
 });
 
 // @route   DELETE api/appointments/:id
-router.delete('/:id', protect, authorize('ADMIN'), async (req, res) => {
+router.delete('/:id', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
-        const appointment = await Appointment.findByIdAndDelete(req.params.id);
+        const appointment = await Appointment.findById(req.params.id);
         if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+
+        if (req.user.role === 'BARBEIRO' && appointment.barber.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Not authorized to delete this appointment' });
+        }
+
+        await Appointment.findByIdAndDelete(req.params.id);
         res.json({ message: 'Appointment removed' });
     } catch (err) {
         res.status(500).json({ message: 'Server error' });

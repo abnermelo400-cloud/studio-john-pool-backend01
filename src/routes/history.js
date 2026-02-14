@@ -4,10 +4,15 @@ const CutHistory = require('../models/CutHistory');
 const { protect, authorize } = require('../middleware/auth');
 
 // @route   GET api/history
-// @desc    Get all cut history (Admin only)
-router.get('/', protect, authorize('ADMIN'), async (req, res) => {
+// @desc    Get cut history (Admin or Barber)
+router.get('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
-        const history = await CutHistory.find()
+        let query = {};
+        if (req.user.role === 'BARBEIRO') {
+            query.barber = req.user.id;
+        }
+
+        const history = await CutHistory.find(query)
             .populate('client', 'name email')
             .populate('barber', 'name')
             .sort({ date: -1 });
