@@ -43,4 +43,15 @@ router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     }
 });
 
+// @route   DELETE api/history/:id
+router.delete('/:id', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
+    try {
+        const history = await CutHistory.findByIdAndDelete(req.params.id);
+        if (!history) return res.status(404).json({ message: 'Registro não encontrado' });
+        res.json({ message: 'Registro excluído com sucesso' });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;

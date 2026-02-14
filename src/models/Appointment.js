@@ -6,6 +6,7 @@ const appointmentSchema = new mongoose.Schema({
     service: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
     date: { type: Date, required: true },
     status: { type: String, enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'], default: 'PENDING' },
+    withAI: { type: Boolean, default: false },
     notes: { type: String }
 });
 

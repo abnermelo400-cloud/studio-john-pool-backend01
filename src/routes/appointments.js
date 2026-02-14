@@ -157,7 +157,8 @@ router.post('/', protect, async (req, res) => {
             client: req.user.id,
             barber,
             service,
-            date: new Date(date) // Ensure it's a Proper Date object
+            date: new Date(date),
+            withAI: req.body.withAI || false
         });
         await appointment.save();
         res.json(appointment);
