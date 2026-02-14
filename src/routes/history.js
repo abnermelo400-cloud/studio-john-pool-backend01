@@ -32,10 +32,16 @@ router.get('/:clientId', protect, async (req, res) => {
 // @route   POST api/history
 router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
     try {
-        const history = new CutHistory({
-            ...req.body,
-            barber: req.user.id
-        });
+        const historyData = { ...req.body };
+        // If user is not ADMIN, force barber to be the current user
+        if (req.user.role !== 'ADMIN') {
+            historyData.barber = req.user.id;
+        } else if (!historyData.barber) {
+            // If ADMIN and no barber provided, use current ADMIN id
+            historyData.barber = req.user.id;
+        }
+
+        const history = new CutHistory(historyData);
         await history.save();
         res.json(history);
     } catch (err) {
