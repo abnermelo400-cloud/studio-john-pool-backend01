@@ -53,10 +53,10 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/analysis', require('./routes/analysis'));
 app.use('/api/notifications', require('./routes/notifications'));
 
-// Cron Job for Appointment Reminders (Every 15 minutes) — powered by MagicBell
+// Cron Job for Appointment Reminders (Every 15 minutes) — powered by Native Push
 const cron = require('node-cron');
 const Appointment = require('./models/Appointment');
-const { sendMagicBellNotification } = require('./routes/notifications');
+const { sendPushNotification } = require('./routes/notifications');
 
 cron.schedule('*/15 * * * *', async () => {
     console.log('⏰ Checking for upcoming appointments...');
@@ -71,18 +71,17 @@ cron.schedule('*/15 * * * *', async () => {
         }).populate('client');
 
         for (const appt of upcoming) {
-            const client = appt.client;
-            if (client && client.email) {
+            const user = appt.client;
+            if (user && user.pushSubscriptions && user.pushSubscriptions.length > 0) {
                 try {
-                    await sendMagicBellNotification({
+                    await sendPushNotification(user, {
                         title: '✂️ Lembrete de Agendamento',
-                        content: `Olá ${client.name}! Seu horário está chegando em breve. Até já!`,
-                        action_url: `${process.env.FRONTEND_URL}/booking`,
-                        email: client.email,
+                        body: `Olá ${user.name}! Seu horário está chegando em breve. Até já!`,
+                        data: { url: `${process.env.FRONTEND_URL}/booking` }
                     });
-                    console.log(`✅ Reminder sent via MagicBell to ${client.email}`);
+                    console.log(`✅ Reality: Reminder sent via Web Push to ${user.email}`);
                 } catch (err) {
-                    console.error(`MagicBell reminder error for ${client.email}:`, err?.response?.data || err.message);
+                    console.error(`Web Push reminder error for ${user.email}:`, err.message);
                 }
             }
             appt.notified = true;
