@@ -53,11 +53,10 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/analysis', require('./routes/analysis'));
 app.use('/api/notifications', require('./routes/notifications'));
 
-// Cron Job for Appointment Reminders (Every 15 minutes)
+// Cron Job for Appointment Reminders (Every 15 minutes) — powered by MagicBell
 const cron = require('node-cron');
 const Appointment = require('./models/Appointment');
-const User = require('./models/User');
-const webpush = require('web-push');
+const { sendMagicBellNotification } = require('./routes/notifications');
 
 cron.schedule('*/15 * * * *', async () => {
     console.log('⏰ Checking for upcoming appointments...');
@@ -73,20 +72,17 @@ cron.schedule('*/15 * * * *', async () => {
 
         for (const appt of upcoming) {
             const client = appt.client;
-            if (client && client.pushSubscriptions && client.pushSubscriptions.length > 0) {
-                const payload = JSON.stringify({
-                    title: 'Lembrete de Agendamento',
-                    body: `Olá ${client.name}, seu compromisso está chegando em breve!`,
-                    icon: '/icons/icon-192x192.png',
-                    url: '/history'
-                });
-
-                for (const sub of client.pushSubscriptions) {
-                    try {
-                        await webpush.sendNotification(sub, payload);
-                    } catch (err) {
-                        console.error('Error sending push:', err.endpoint);
-                    }
+            if (client && client.email) {
+                try {
+                    await sendMagicBellNotification({
+                        title: '✂️ Lembrete de Agendamento',
+                        content: `Olá ${client.name}! Seu horário está chegando em breve. Até já!`,
+                        action_url: `${process.env.FRONTEND_URL}/booking`,
+                        email: client.email,
+                    });
+                    console.log(`✅ Reminder sent via MagicBell to ${client.email}`);
+                } catch (err) {
+                    console.error(`MagicBell reminder error for ${client.email}:`, err?.response?.data || err.message);
                 }
             }
             appt.notified = true;
