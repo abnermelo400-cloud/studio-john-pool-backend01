@@ -5,7 +5,7 @@ const appointmentSchema = new mongoose.Schema({
     barber: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     service: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
     date: { type: Date, required: true },
-    status: { type: String, enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'], default: 'PENDING' },
+    status: { type: String, enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'WAITING_PAYMENT'], default: 'PENDING' },
     withAI: { type: Boolean, default: false },
     notes: { type: String }
 });

@@ -65,7 +65,7 @@ router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
 
         if (appointment) {
             const Appointment = require('../models/Appointment');
-            await Appointment.findByIdAndUpdate(appointment, { status: 'COMPLETED' });
+            await Appointment.findByIdAndUpdate(appointment, { status: 'WAITING_PAYMENT' });
         }
         console.log(`✅ Order created and stock reserved: ID ${order._id}`);
 
@@ -132,7 +132,12 @@ router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
         order.status = 'CLOSED';
         order.closedAt = Date.now();
         order.paymentMethod = req.body.paymentMethod || 'OUTRO';
-        order.tipAmount = req.body.tipAmount || 0;
+
+        // Preserve tip if not explicitly provided (avoid resetting to 0)
+        if (req.body.tipAmount !== undefined) {
+            order.tipAmount = req.body.tipAmount;
+        }
+
         await order.save();
 
         // Update Appointment status if linked
