@@ -7,6 +7,7 @@ const appointmentSchema = new mongoose.Schema({
     date: { type: Date, required: true },
     status: { type: String, enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'WAITING_PAYMENT'], default: 'PENDING' },
     withAI: { type: Boolean, default: false },
+    notified: { type: Boolean, default: false },
     notes: { type: String }
 });
 

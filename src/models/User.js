@@ -37,6 +37,13 @@ const userSchema = new mongoose.Schema({
     transports: [{ type: String }]
   }],
   currentChallenge: { type: String },
+  pushSubscriptions: [{
+    endpoint: String,
+    keys: {
+      p256dh: String,
+      auth: String
+    }
+  }],
   createdAt: { type: Date, default: Date.now }
 }, {
   toJSON: { virtuals: true },
