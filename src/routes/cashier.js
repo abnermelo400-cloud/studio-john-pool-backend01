@@ -87,12 +87,23 @@ router.get('/status', protect, async (req, res) => {
 });
 
 // @route   GET api/cashier/history
-// @desc    Get cashier history
+// @desc    Get cashier history with optional date filtering
 router.get('/history', protect, authorize('ADMIN'), async (req, res) => {
     try {
-        const history = await Cashier.find({ status: 'CLOSED' })
+        const { date } = req.query;
+        let query = { status: 'CLOSED' };
+
+        if (date) {
+            const start = new Date(date);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(date);
+            end.setHours(23, 59, 59, 999);
+            query.closedAt = { $gte: start, $lte: end };
+        }
+
+        const history = await Cashier.find(query)
             .sort({ closedAt: -1 })
-            .limit(10)
+            .limit(date ? 50 : 10) // More results if date is specified
             .populate('openedBy', 'name')
             .populate('closedBy', 'name');
         res.json(history);
