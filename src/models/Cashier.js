@@ -25,7 +25,8 @@ const cashierSchema = new mongoose.Schema({
     barberStats: [{
         barber: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         dailyRevenue: { type: Number, default: 0 },
-        dailyTips: { type: Number, default: 0 }
+        dailyTips: { type: Number, default: 0 },
+        serviceCount: { type: Number, default: 0 }
     }],
     notes: { type: String }
 });

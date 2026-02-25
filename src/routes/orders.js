@@ -170,11 +170,13 @@ router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
             if (barberStatIndex > -1) {
                 activeCashier.barberStats[barberStatIndex].dailyRevenue += order.totalAmount;
                 activeCashier.barberStats[barberStatIndex].dailyTips += order.tipAmount;
+                activeCashier.barberStats[barberStatIndex].serviceCount += 1;
             } else {
                 activeCashier.barberStats.push({
                     barber: order.barber,
                     dailyRevenue: order.totalAmount,
-                    dailyTips: order.tipAmount
+                    dailyTips: order.tipAmount,
+                    serviceCount: 1
                 });
             }
 
