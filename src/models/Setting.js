@@ -46,6 +46,11 @@ const settingSchema = new mongoose.Schema({
     mapsUrl: { type: String, default: '' },
     heroImage: { type: String, default: '' }, // Background for landing
     founderBio: { type: String, default: '' },
+    homeCarousel: [{
+        url: { type: String, required: true },
+        type: { type: String, enum: ['image', 'video'], default: 'image' },
+        description: { type: String }
+    }],
     cancellationWindow: { type: Number, default: 2 } // Hours
 });
 
