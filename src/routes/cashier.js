@@ -77,7 +77,9 @@ router.post('/close', protect, authorize('ADMIN'), async (req, res) => {
 // @desc    Check if cashier is open
 router.get('/status', protect, async (req, res) => {
     try {
-        const cashier = await Cashier.findOne({ status: 'OPEN' });
+        const cashier = await Cashier.findOne({ status: 'OPEN' })
+            .populate('transactions.barber', 'name avatar')
+            .populate('barberStats.barber', 'name avatar');
         res.json({ isOpen: !!cashier, cashier });
     } catch (err) {
         res.status(500).json({ message: 'Server error' });

@@ -14,6 +14,17 @@ router.get('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
             query.barber = req.user.id;
         }
 
+        // Filters
+        if (req.query.cashier) query.cashier = req.query.cashier;
+        if (req.query.barber && req.user.role === 'ADMIN') query.barber = req.query.barber;
+        if (req.query.status) query.status = req.query.status;
+
+        if (req.query.startDate || req.query.endDate) {
+            query.createdAt = {};
+            if (req.query.startDate) query.createdAt.$gte = new Date(req.query.startDate);
+            if (req.query.endDate) query.createdAt.$lte = new Date(req.query.endDate);
+        }
+
         const orders = await Order.find(query)
             .populate('client', 'name')
             .populate('barber', 'name')
@@ -156,7 +167,8 @@ router.put('/:id/close', protect, authorize('ADMIN'), async (req, res) => {
                 type: 'IN',
                 amount: totalWithTip,
                 description: `Pedido #${order._id.toString().slice(-4)}${order.tipAmount > 0 ? ' + Gorjeta' : ''} - ${order.client?.name || 'Cliente'}`,
-                paymentMethod: method
+                paymentMethod: method,
+                barber: order.barber
             });
 
             // Update Summary

@@ -14,6 +14,7 @@ const cashierSchema = new mongoose.Schema({
         amount: { type: Number, required: true },
         description: { type: String, required: true },
         paymentMethod: { type: String, enum: ['CASH', 'CARD', 'PIX', 'EXPENSE'] },
+        barber: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         timestamp: { type: Date, default: Date.now }
     }],
     summary: {

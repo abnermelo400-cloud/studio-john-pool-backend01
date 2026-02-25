@@ -3,6 +3,7 @@ const router = express.Router();
 const Order = require('../models/Order');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
+const Cashier = require('../models/Cashier');
 const { protect, authorize } = require('../middleware/auth');
 const { startOfDay, startOfMonth, endOfMonth, startOfYear } = require('date-fns');
 
@@ -16,6 +17,8 @@ router.get('/', protect, authorize('ADMIN'), async (req, res) => {
         const endMonth = endOfMonth(now);
 
         // 1. Revenue Stats
+        const activeCashier = await Cashier.findOne({ status: 'OPEN' });
+
         const revenueStats = await Order.aggregate([
             { $match: { status: 'CLOSED', closedAt: { $gte: startMonth, $lte: endMonth } } },
             {
@@ -78,11 +81,13 @@ router.get('/', protect, authorize('ADMIN'), async (req, res) => {
 
         res.json({
             kpis: {
-                revenueToday: revenue.today,
+                revenueToday: activeCashier ? (activeCashier.summary?.cash + activeCashier.summary?.card + activeCashier.summary?.pix) : revenue.today,
                 revenueMonth: revenue.totalMonth,
                 ticketMedio,
                 todayAppointments: appointmentsCount,
-                totalClients
+                totalClients,
+                sessionActive: !!activeCashier,
+                cashierId: activeCashier?._id
             },
             recentOrders: await Order.find({ status: 'CLOSED' }).sort({ closedAt: -1 }).limit(5).populate('client', 'name'),
             pendingAppointments,
@@ -114,12 +119,23 @@ router.get('/me', protect, authorize('BARBEIRO'), async (req, res) => {
                     totalMonth: { $sum: { $cond: [{ $gte: ['$closedAt', startMonth] }, '$totalAmount', 0] } },
                     totalYear: { $sum: '$totalAmount' },
                     today: { $sum: { $cond: [{ $gte: ['$closedAt', startDay] }, '$totalAmount', 0] } },
+                    tipsToday: { $sum: { $cond: [{ $gte: ['$closedAt', startDay] }, '$tipAmount', 0] } },
                     count: { $sum: 1 }
                 }
             }
         ]);
 
-        const revenue = revenueStats[0] || { totalMonth: 0, totalYear: 0, today: 0, count: 0 };
+        const revenue = revenueStats[0] || { totalMonth: 0, totalYear: 0, today: 0, tipsToday: 0, count: 0 };
+
+        // SYNC WITH ACTIVE CASHIER SESSION
+        const activeCashier = await Cashier.findOne({ status: 'OPEN' });
+        if (activeCashier) {
+            const barberStat = activeCashier.barberStats.find(s => s.barber.toString() === req.user.id);
+            if (barberStat) {
+                revenue.today = barberStat.dailyRevenue;
+                revenue.tipsToday = barberStat.dailyTips;
+            }
+        }
 
         // 2. My Appointments Today
         const appointmentsCount = await Appointment.countDocuments({
@@ -140,19 +156,21 @@ router.get('/me', protect, authorize('BARBEIRO'), async (req, res) => {
             {
                 $project: {
                     servicesTotal: { $reduce: { input: "$services", initialValue: 0, in: { $add: ["$$value", "$$this.price"] } } },
-                    productsTotal: { $reduce: { input: "$products", initialValue: 0, in: { $add: ["$$value", { $multiply: ["$$this.price", "$$this.quantity"] }] } } }
+                    productsTotal: { $reduce: { input: "$products", initialValue: 0, in: { $add: ["$$value", { $multiply: ["$$this.price", "$$this.quantity"] }] } } },
+                    tipsTotal: "$tipAmount"
                 }
             },
             {
                 $group: {
                     _id: null,
                     services: { $sum: "$servicesTotal" },
-                    products: { $sum: "$productsTotal" }
+                    products: { $sum: "$productsTotal" },
+                    tips: { $sum: "$tipsTotal" }
                 }
             }
         ]);
 
-        const myBreakdown = breakdown[0] || { services: 0, products: 0 };
+        const myBreakdown = breakdown[0] || { services: 0, products: 0, tips: 0 };
 
         // 4. Most performed services this month
         const topServices = await Order.aggregate([
@@ -171,16 +189,36 @@ router.get('/me', protect, authorize('BARBEIRO'), async (req, res) => {
             { $limit: 5 }
         ]);
 
+        // 5. Top products sold this month
+        const topProducts = await Order.aggregate([
+            { $match: { barber: req.user._id, status: 'CLOSED', closedAt: { $gte: startMonth } } },
+            { $unwind: "$products" },
+            { $lookup: { from: 'products', localField: 'products.product', foreignField: '_id', as: 'productInfo' } },
+            { $unwind: "$productInfo" },
+            {
+                $group: {
+                    _id: "$products.product",
+                    name: { $first: "$productInfo.name" },
+                    count: { $sum: "$products.quantity" }
+                }
+            },
+            { $sort: { count: -1 } },
+            { $limit: 5 }
+        ]);
+
         res.json({
             kpis: {
                 revenueToday: revenue.today,
+                tipsToday: revenue.tipsToday,
                 revenueMonth: revenue.totalMonth,
                 revenueYear: revenue.totalYear,
                 todayAppointments: appointmentsCount,
-                ticketMedio: revenue.count > 0 ? (revenue.totalMonth / revenue.count) : 0
+                ticketMedio: revenue.count > 0 ? (revenue.totalMonth / revenue.count) : 0,
+                sessionActive: !!activeCashier
             },
             breakdown: myBreakdown,
             topServices,
+            topProducts,
             pendingAppointments: myPendingAppointments
         });
     } catch (err) {
