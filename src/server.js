@@ -56,7 +56,8 @@ const PORT = process.env.PORT || 5000;
 
 app.get('/', (req, res) => {
     res.json({
-        status: 'API Studio John Pool Online 🚀'
+        status: 'API Studio John Pool Online 🚀 (VPS)',
+        version: '1.0.0'
     });
 });
 

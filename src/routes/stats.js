@@ -4,7 +4,7 @@ const Order = require('../models/Order');
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
-const { startOfDay, startOfMonth, endOfMonth } = require('date-fns');
+const { startOfDay, startOfMonth, endOfMonth, startOfYear } = require('date-fns');
 
 // @route   GET api/stats
 // @desc    Get management statistics
@@ -103,21 +103,23 @@ router.get('/me', protect, authorize('BARBEIRO'), async (req, res) => {
         const startDay = startOfDay(now);
         const startMonth = startOfMonth(now);
         const endMonth = endOfMonth(now);
+        const startYear = startOfYear(now);
 
         // 1. My Revenue Stats
         const revenueStats = await Order.aggregate([
-            { $match: { barber: req.user._id, status: 'CLOSED', closedAt: { $gte: startMonth, $lte: endMonth } } },
+            { $match: { barber: req.user._id, status: 'CLOSED', closedAt: { $gte: startYear } } },
             {
                 $group: {
                     _id: null,
-                    totalMonth: { $sum: '$totalAmount' },
+                    totalMonth: { $sum: { $cond: [{ $gte: ['$closedAt', startMonth] }, '$totalAmount', 0] } },
+                    totalYear: { $sum: '$totalAmount' },
                     today: { $sum: { $cond: [{ $gte: ['$closedAt', startDay] }, '$totalAmount', 0] } },
                     count: { $sum: 1 }
                 }
             }
         ]);
 
-        const revenue = revenueStats[0] || { totalMonth: 0, today: 0, count: 0 };
+        const revenue = revenueStats[0] || { totalMonth: 0, totalYear: 0, today: 0, count: 0 };
 
         // 2. My Appointments Today
         const appointmentsCount = await Appointment.countDocuments({
@@ -173,6 +175,7 @@ router.get('/me', protect, authorize('BARBEIRO'), async (req, res) => {
             kpis: {
                 revenueToday: revenue.today,
                 revenueMonth: revenue.totalMonth,
+                revenueYear: revenue.totalYear,
                 todayAppointments: appointmentsCount,
                 ticketMedio: revenue.count > 0 ? (revenue.totalMonth / revenue.count) : 0
             },

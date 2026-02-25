@@ -15,6 +15,8 @@ const orderSchema = new mongoose.Schema({
         price: Number,
         addedAt: { type: Date, default: Date.now }
     }],
+    tipAmount: { type: Number, default: 0 },
+    appointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
     totalAmount: { type: Number, required: true },
     paymentMethod: { type: String, enum: ['CASH', 'CARD', 'PIX'] },
     status: { type: String, enum: ['OPEN', 'READY_FOR_PAYMENT', 'CLOSED'], default: 'OPEN' },

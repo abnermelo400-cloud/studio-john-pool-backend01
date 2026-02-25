@@ -36,7 +36,7 @@ router.post('/', protect, async (req, res) => {
 // @route   GET api/analysis/user/:userId
 // @desc    Get analysis history for a user
 // @access  Private
-router.get('/user/:userId', auth, async (req, res) => {
+router.get('/user/:userId', protect, async (req, res) => {
     try {
         // Check permissions: User can see own, Admin/Barber can see anyone's
         if (req.user.role !== 'ADMIN' && req.user.role !== 'BARBEIRO' && req.user.id !== req.params.userId) {

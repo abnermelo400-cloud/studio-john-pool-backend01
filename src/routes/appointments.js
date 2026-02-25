@@ -154,7 +154,9 @@ router.post('/', protect, async (req, res) => {
         if (isClosedDay) return res.status(400).json({ message: 'Shop is closed on this date' });
 
         const appointment = new Appointment({
-            client: req.user.id,
+            client: (req.user.role === 'ADMIN' || req.user.role === 'BARBEIRO') && req.body.client
+                ? req.body.client
+                : req.user.id,
             barber,
             service,
             date: new Date(date),

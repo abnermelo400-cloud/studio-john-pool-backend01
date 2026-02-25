@@ -55,12 +55,30 @@ router.post('/', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
 });
 
 // @route   DELETE api/history/:id
-router.delete('/:id', protect, authorize('ADMIN', 'BARBEIRO'), async (req, res) => {
+router.delete('/:id', protect, async (req, res) => {
     try {
-        const history = await CutHistory.findByIdAndDelete(req.params.id);
-        if (!history) return res.status(404).json({ message: 'Registro não encontrado' });
+        const history = await CutHistory.findById(req.params.id);
+
+        if (!history) {
+            return res.status(404).json({ message: 'Registro não encontrado' });
+        }
+
+        console.log(`🗑️ Deletion attempt: Record ${req.params.id} by User ${req.user.id} (${req.user.role})`);
+
+        // Check permissions: ADMIN, BARBEIRO (if they created it), or the CLIENTE themselves
+        const isOwner = history.client && history.client.toString() === req.user.id;
+        const isAdmin = req.user.role === 'ADMIN';
+        const isBarber = req.user.role === 'BARBEIRO';
+
+        if (!isAdmin && !isBarber && !isOwner) {
+            console.log(`🚫 Deletion denied: User ${req.user.id} is not owner of record ${req.params.id}`);
+            return res.status(403).json({ message: 'Não autorizado a excluir este registro' });
+        }
+
+        await CutHistory.findByIdAndDelete(req.params.id);
         res.json({ message: 'Registro excluído com sucesso' });
     } catch (err) {
+        console.error('Error deleting history:', err);
         res.status(500).json({ message: 'Server error' });
     }
 });
